@@ -7,7 +7,7 @@ import {
   Button,
   ActivityIndicator,
   TouchableOpacity,
-  ScrollView
+  ScrollView,
 } from 'react-native';
 import {Provider, atom, useAtom} from 'jotai';
 import AsyncStorage from '@react-native-community/async-storage';
@@ -37,15 +37,6 @@ const useStore = createStore(
   ),
 );
 
-const Consumer = () => {
-  const [data, setData] = useAtom(simple);
-  return (
-    <View>
-      <Text>{JSON.stringify(data)}</Text>
-    </View>
-  );
-};
-
 const API = 'https://jsonplaceholder.typicode.com/todos/1';
 
 const urlAtom = atom(API);
@@ -58,6 +49,41 @@ const fetchUrlAtom = atom(async (get) => {
   }
 });
 
+// trying persisting jotai atoms
+const strAtom = atom([]);
+
+const persistStrAtom = atom([], async (get, set, action) => {
+  console.log("inside the perisst atom method")
+  if (action.type === 'load') {
+    const str = await AsyncStorage.getItem('mykey');
+    // console.log('Storagae is here ', str);
+    set(strAtom, JSON.parse(str));
+  } else if (action.type === 'save') {
+    // console.log('THIS POINT IS REACHED ');
+    // return;
+    const str = JSON.stringify(get(strAtom));
+    await AsyncStorage.setItem('mykey', str);
+  }
+});
+
+const Consumer = () => {
+  const [data, setData] = useAtom(persistStrAtom);
+  return (
+    <View>
+      <Text>{JSON.stringify(data)}</Text>
+    </View>
+  );
+};
+
+const Consumer2 = () => {
+  const [data, setData] = useAtom(strAtom);
+  return (
+    <View>
+      <Text>{'Peristed data is here ' + JSON.stringify(data)}</Text>
+    </View>
+  );
+};
+
 const AsyncSample = () => {
   const [json] = useAtom(fetchUrlAtom);
   return (
@@ -68,7 +94,7 @@ const AsyncSample = () => {
 };
 const AddToList = () => {
   const [text, setText] = React.useState('');
-  const [data, setData] = useAtom(simple);
+  const [data, setData] = useAtom(persistStrAtom);
   return (
     <View>
       <TextInput
@@ -150,25 +176,32 @@ export default function App() {
       <Provider>
         <View style={{padding: 12, flex: 1}}>
           <ScrollView>
-            <View style={{paddingVertical:12}}>
+            <View style={{paddingVertical: 12}}>
               <Text style={{fontSize: 18}}>Handling State with Jotai</Text>
             </View>
-            <Consumer />
-            <AddToList />
+            <Consumer2 />
+            <React.Suspense
+              fallback={<ActivityIndicator color="blue" size="large" />}>
+              <Consumer />
+            </React.Suspense>
+            <React.Suspense
+              fallback={<ActivityIndicator color="blue" size="large" />}>
+              <AddToList />
+            </React.Suspense>
             <View style={{marginVertical: 22}}>
-              <ErrorBoundary fallback={<Text>Error fetching Todos.</Text>}>
-                <React.Suspense
-                  fallback={<ActivityIndicator color="blue" size="large" />}>
-                  <AsyncSample />
-                </React.Suspense>
-              </ErrorBoundary>
+              {/* <ErrorBoundary fallback={<Text>Error fetching Todos.</Text>}> */}
+              <React.Suspense
+                fallback={<ActivityIndicator color="blue" size="large" />}>
+                <AsyncSample />
+              </React.Suspense>
+              {/* </ErrorBoundary> */}
             </View>
 
-            <View style={{paddingVertical:12}}>
+            <View style={{paddingVertical: 12}}>
               <Text style={{fontSize: 18}}>Handling State with Zunstand</Text>
             </View>
-            <BearCounter/>
-            <Controls/>
+            <BearCounter />
+            <Controls />
           </ScrollView>
         </View>
       </Provider>
